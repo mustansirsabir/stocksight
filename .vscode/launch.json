@@ -18,6 +18,8 @@
             //     "--debug"
             // ]
             "args": [
+                "-i",
+                "stocksight2",
                 "-s",
                 "TSLA",
                 "--newsheadlines",

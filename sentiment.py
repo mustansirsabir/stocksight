@@ -5,7 +5,6 @@ relevant tweets and their sentiment values to
 Elasticsearch.
 See README.md or https://github.com/shirosaidev/stocksight
 for more information.
-
 Copyright (C) Chris Park 2018-2020
 stocksight is released under the Apache 2.0 license. See
 LICENSE for the full license text.
@@ -166,7 +165,6 @@ class TweetStreamListener(StreamListener):
                     logger.info("Tweet contains token from ignore list, not adding")
                     self.count_filtered+=1
                     return True
-
             # check required tokens from config
             tokenspass = False
             tokensfound = 0
@@ -226,8 +224,9 @@ class TweetStreamListener(StreamListener):
             logger.info("Adding tweet to elasticsearch")
             # add twitter data and sentiment info to elasticsearch
             es.index(index=args.index,
-                    doc_type="tweet",
+                    doc_type="_doc",
                     body={"author": screen_name,
+                        "type": "tweet",
                         "location": location,
                         "language": language,
                         "friends": friends,
@@ -288,8 +287,9 @@ class NewsHeadlineListener:
                     print("\n------------------------------> (news headlines: %s, filtered: %s, filter-ratio: %s)" \
                         % (self.count, self.count_filtered, str(round(self.count_filtered/self.count*100,2))+"%"))
                     print("Date: " + datenow)
-                    print("News Headline: " + htext)
-                    print("Location (url): " + htext_url)
+                    
+                    # print("News Headline: " + htext)
+                    # print("Location (url): " + htext_url)
 
                     # create tokens of words in text using nltk
                     text_for_tokens = re.sub(
@@ -326,13 +326,14 @@ class NewsHeadlineListener:
                     logger.info("Adding news headline to elasticsearch")
                     # add news headline data and sentiment info to elasticsearch
                     es.index(index=args.index,
-                            doc_type="newsheadline",
+                            doc_type="_doc",
                             body={"date": datenow,
-                                "location": htext_url,
-                                "message": htext,
-                                "polarity": polarity,
-                                "subjectivity": subjectivity,
-                                "sentiment": sentiment})
+                                  "type": "newsheadline",
+                                  "location": htext_url,
+                                  "message": htext,
+                                  "polarity": polarity,
+                                  "subjectivity": subjectivity,
+                                  "sentiment": sentiment})
 
             logger.info("Will get news headlines again in %s sec..." % self.frequency)
             time.sleep(self.frequency)
@@ -519,11 +520,11 @@ def sentiment_analysis(text):
     # output sentiment
     print("Sentiment (url): " + str(sentiment_url))
     print("Sentiment (algorithm): " + str(sentiment))
-    print("Overall sentiment (textblob): ", text_tb.sentiment) 
-    print("Overall sentiment (vader): ", text_vs) 
-    print("sentence was rated as ", round(text_vs['neg']*100, 3), "% Negative") 
-    print("sentence was rated as ", round(text_vs['neu']*100, 3), "% Neutral") 
-    print("sentence was rated as ", round(text_vs['pos']*100, 3), "% Positive") 
+    print("Overall sentiment (textblob): ", text_tb.sentiment)
+    print("Overall sentiment (vader): ", text_vs)
+    print("sentence was rated as ", round(text_vs['neg']*100, 3), "% Negative")
+    print("sentence was rated as ", round(text_vs['neu']*100, 3), "% Neutral")
+    print("sentence was rated as ", round(text_vs['pos']*100, 3), "% Positive")
     print("************")
 
     return polarity, text_tb.sentiment.subjectivity, sentiment
@@ -742,165 +743,76 @@ if __name__ == '__main__':
     # set up elasticsearch mappings and create index
     mappings = {
         "mappings": {
-            "tweet": {
-                "properties": {
-                    "author": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
-                        }
-                    },
-                    "location": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
-                        }
-                    },
-                    "language": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
-                        }
-                    },
-                    "friends": {
-                        "type": "long"
-                    },
-                    "followers": {
-                        "type": "long"
-                    },
-                    "statuses": {
-                        "type": "long"
-                    },
-                    "date": {
-                        "type": "date"
-                    },
-                    "message": {
-                        "type": "string",
-                        "fields": {
-                            "english": {
-                                "type": "string",
-                                "analyzer": "english"
-                            },
-                            "keyword": {
-                                "type": "keyword"
-                            }
-                        }
-                    },
-                    "tweet_id": {
-                        "type": "long"
-                    },
-                    "polarity": {
-                        "type": "float"
-                    },
-                    "subjectivity": {
-                        "type": "float"
-                    },
-                    "sentiment": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
+            "properties": {
+                "type": { "type": "keyword" },
+                "author": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
                         }
                     }
-                }
-            },
-            "newsheadline": {
-                "properties": {
-                    "date": {
-                        "type": "date"
-                    },
-                    "location": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
+                },
+                "location": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
                         }
-                    },
-                    "message": {
-                        "type": "string",
-                        "fields": {
-                            "english": {
-                                "type": "string",
-                                "analyzer": "english"
-                            },
-                            "keyword": {
-                                "type": "keyword"
-                            }
+                    }
+                },
+                "language": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
                         }
-                    },
-                    "polarity": {
-                        "type": "float"
-                    },
-                    "subjectivity": {
-                        "type": "float"
-                    },
-                    "sentiment": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
+                    }
+                },
+                "friends": {
+                    "type": "long"
+                },
+                "followers": {
+                    "type": "long"
+                },
+                "statuses": {
+                    "type": "long"
+                },
+                "date": {
+                    "type": "date"
+                },
+                "message": {
+                    "type": "text",
+                    "fields": {
+                        "english": {
+                            "type": "text",
+                            "analyzer": "english"
+                        },
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "tweet_id": {
+                    "type": "long"
+                },
+                "polarity": {
+                    "type": "float"
+                },
+                "subjectivity": {
+                    "type": "float"
+                },
+                "sentiment": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
                         }
                     }
                 }
             }
         }
     }
-
-    # mappings = {
-    #     "mappings": {
-    #         "newsheadline": {
-    #             "properties": {
-    #                 "date": {
-    #                     "type": "date"
-    #                 },
-    #                 "location": {
-    #                     "type": "string",
-    #                     "fields": {
-    #                         "keyword": {
-    #                             "type": "keyword"
-    #                         }
-    #                     }
-    #                 },
-    #                 "message": {
-    #                     "type": "string",
-    #                     "fields": {
-    #                         "english": {
-    #                             "type": "string",
-    #                             "analyzer": "english"
-    #                         },
-    #                         "keyword": {
-    #                             "type": "keyword"
-    #                         }
-    #                     }
-    #                 },
-    #                 "polarity": {
-    #                     "type": "float"
-    #                 },
-    #                 "subjectivity": {
-    #                     "type": "float"
-    #                 },
-    #                 "sentiment": {
-    #                     "type": "string",
-    #                     "fields": {
-    #                         "keyword": {
-    #                             "type": "keyword"
-    #                         }
-    #                     }
-    #                 }
-    #             }
-    #         }
-    #     }
-    # }
-    
 
     if args.delindex:
         logger.info('Deleting existing Elasticsearch index ' + args.index)
@@ -929,6 +841,7 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             print("Ctrl-c keyboard interrupt, exiting...")
             sys.exit(0)
+
     else:
         # create instance of the tweepy tweet stream listener
         tweetlistener = TweetStreamListener()
