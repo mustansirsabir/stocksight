@@ -166,6 +166,7 @@ class TweetStreamListener(StreamListener):
                     logger.info("Tweet contains token from ignore list, not adding")
                     self.count_filtered+=1
                     return True
+
             # check required tokens from config
             tokenspass = False
             tokensfound = 0
@@ -854,6 +855,53 @@ if __name__ == '__main__':
         }
     }
 
+    # mappings = {
+    #     "mappings": {
+    #         "newsheadline": {
+    #             "properties": {
+    #                 "date": {
+    #                     "type": "date"
+    #                 },
+    #                 "location": {
+    #                     "type": "string",
+    #                     "fields": {
+    #                         "keyword": {
+    #                             "type": "keyword"
+    #                         }
+    #                     }
+    #                 },
+    #                 "message": {
+    #                     "type": "string",
+    #                     "fields": {
+    #                         "english": {
+    #                             "type": "string",
+    #                             "analyzer": "english"
+    #                         },
+    #                         "keyword": {
+    #                             "type": "keyword"
+    #                         }
+    #                     }
+    #                 },
+    #                 "polarity": {
+    #                     "type": "float"
+    #                 },
+    #                 "subjectivity": {
+    #                     "type": "float"
+    #                 },
+    #                 "sentiment": {
+    #                     "type": "string",
+    #                     "fields": {
+    #                         "keyword": {
+    #                             "type": "keyword"
+    #                         }
+    #                     }
+    #                 }
+    #             }
+    #         }
+    #     }
+    # }
+    
+
     if args.delindex:
         logger.info('Deleting existing Elasticsearch index ' + args.index)
         es.indices.delete(index=args.index, ignore=[400, 404])
@@ -881,7 +929,6 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             print("Ctrl-c keyboard interrupt, exiting...")
             sys.exit(0)
-
     else:
         # create instance of the tweepy tweet stream listener
         tweetlistener = TweetStreamListener()

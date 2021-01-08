@@ -1,0 +1,116 @@
+{
+    "mappings": {
+        "tweet": {
+            "properties": {
+                "author": {
+                    "type": "string",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "location": {
+                    "type": "string",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "language": {
+                    "type": "string",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "friends": {
+                    "type": "long"
+                },
+                "followers": {
+                    "type": "long"
+                },
+                "statuses": {
+                    "type": "long"
+                },
+                "date": {
+                    "type": "date"
+                },
+                "message": {
+                    "type": "string",
+                    "fields": {
+                        "english": {
+                            "type": "string",
+                            "analyzer": "english"
+                        },
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "tweet_id": {
+                    "type": "long"
+                },
+                "polarity": {
+                    "type": "float"
+                },
+                "subjectivity": {
+                    "type": "float"
+                },
+                "sentiment": {
+                    "type": "string",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                }
+            }
+        },
+        "newsheadline": {
+            "properties": {
+                "date": {
+                    "type": "date"
+                },
+                "location": {
+                    "type": "string",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "message": {
+                    "type": "string",
+                    "fields": {
+                        "english": {
+                            "type": "string",
+                            "analyzer": "english"
+                        },
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "polarity": {
+                    "type": "float"
+                },
+                "subjectivity": {
+                    "type": "float"
+                },
+                "sentiment": {
+                    "type": "string",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
