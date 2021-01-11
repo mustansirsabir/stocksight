@@ -35,7 +35,7 @@ from newspaper import Article, ArticleException
 
 # import elasticsearch host, twitter keys and tokens
 from config import *
-
+from selenium import webdriver
 
 STOCKSIGHT_VERSION = '0.1-b.12'
 __version__ = STOCKSIGHT_VERSION
@@ -275,7 +275,7 @@ class NewsHeadlineListener:
 
         while True:
             new_headlines = self.get_news_headlines(self.url)
-
+            
             # add any new headlines
             for htext, htext_url in new_headlines:
                 if htext not in self.headlines:
@@ -288,8 +288,8 @@ class NewsHeadlineListener:
                         % (self.count, self.count_filtered, str(round(self.count_filtered/self.count*100,2))+"%"))
                     print("Date: " + datenow)
                     
-                    # print("News Headline: " + htext)
-                    # print("Location (url): " + htext_url)
+                    print("News Headline: " + htext)
+                    print("Location (url): " + htext_url)
 
                     # create tokens of words in text using nltk
                     text_for_tokens = re.sub(
@@ -346,18 +346,25 @@ class NewsHeadlineListener:
 
         try:
 
-            req = requests.get(url)
-            html = req.text
-            soup = BeautifulSoup(html, 'html.parser')
-            html = soup.findAll('h3')
-            links = soup.findAll('a')
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
+                'Content-Type': 'text/html',
+                }
 
+            driver = webdriver.Edge(executable_path='C:\EdgeDriver\edgedriver_win6487.0.664.75\msedgedriver.exe')
+            driver.get(url)
+            
+            self.scroll_web_page(driver, 12)
+
+            req = driver.find_element_by_id(id_='mrt-node-quoteNewsStream-0-Stream')
+            html = req.find_elements_by_tag_name('h3')
+            links = req.find_elements_by_tag_name('a')
             logger.debug(html)
             logger.debug(links)
 
             if html:
                 for i in html:
-                    latestheadlines.append((i.next.next.next.next, url))
+                    latestheadlines.append((i.text, url))
             logger.debug(latestheadlines)
 
             if args.followlinks:
@@ -380,8 +387,43 @@ class NewsHeadlineListener:
         except requests.exceptions.RequestException as re:
             logger.warning("Exception: can't crawl web site (%s)" % re)
             pass
+        except Exception as ex:
+            x = 1
+            y = 2
+
 
         return latestheadlines
+
+    
+    def scroll_web_page(self, driver: webdriver, scroll_count):
+    
+        try:
+            # Wait to load page
+            time.sleep(15)
+
+            SCROLL_PAUSE_TIME = 1.5
+
+            # Get scroll height
+            height = driver.execute_script("return document.body.scrollHeight")
+            
+            count = 0 
+            while count <= scroll_count:
+                
+                count = count + 1
+                
+                # Scroll down to bottom
+                script = "window.scrollTo(0, "+ str(height) +");"
+                driver.execute_script(script)
+
+                # Wait to load page
+                time.sleep(SCROLL_PAUSE_TIME)
+
+                # Calculate new scroll height and compare with last scroll height
+                height = height + driver.execute_script("return document.body.scrollHeight")
+
+        except Exception as ex:
+            x = 1
+            y = 2
 
 
 def get_page_text(url):
