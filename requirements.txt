@@ -6,3 +6,4 @@ beautifulsoup4
 textblob
 vaderSentiment
 newspaper3k
+selenium==3.141.0

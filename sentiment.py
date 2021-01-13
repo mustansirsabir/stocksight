@@ -5,7 +5,6 @@ relevant tweets and their sentiment values to
 Elasticsearch.
 See README.md or https://github.com/shirosaidev/stocksight
 for more information.
-
 Copyright (C) Chris Park 2018-2020
 stocksight is released under the Apache 2.0 license. See
 LICENSE for the full license text.
@@ -36,7 +35,7 @@ from newspaper import Article, ArticleException
 
 # import elasticsearch host, twitter keys and tokens
 from config import *
-
+from selenium import webdriver
 
 STOCKSIGHT_VERSION = '0.1-b.12'
 __version__ = STOCKSIGHT_VERSION
@@ -225,8 +224,9 @@ class TweetStreamListener(StreamListener):
             logger.info("Adding tweet to elasticsearch")
             # add twitter data and sentiment info to elasticsearch
             es.index(index=args.index,
-                    doc_type="tweet",
+                    doc_type="_doc",
                     body={"author": screen_name,
+                        "type": "tweet",
                         "location": location,
                         "language": language,
                         "friends": friends,
@@ -275,7 +275,7 @@ class NewsHeadlineListener:
 
         while True:
             new_headlines = self.get_news_headlines(self.url)
-
+            
             # add any new headlines
             for htext, htext_url in new_headlines:
                 if htext not in self.headlines:
@@ -287,6 +287,7 @@ class NewsHeadlineListener:
                     print("\n------------------------------> (news headlines: %s, filtered: %s, filter-ratio: %s)" \
                         % (self.count, self.count_filtered, str(round(self.count_filtered/self.count*100,2))+"%"))
                     print("Date: " + datenow)
+                    
                     print("News Headline: " + htext)
                     print("Location (url): " + htext_url)
 
@@ -325,13 +326,14 @@ class NewsHeadlineListener:
                     logger.info("Adding news headline to elasticsearch")
                     # add news headline data and sentiment info to elasticsearch
                     es.index(index=args.index,
-                            doc_type="newsheadline",
+                            doc_type="_doc",
                             body={"date": datenow,
-                                "location": htext_url,
-                                "message": htext,
-                                "polarity": polarity,
-                                "subjectivity": subjectivity,
-                                "sentiment": sentiment})
+                                  "type": "newsheadline",
+                                  "location": htext_url,
+                                  "message": htext,
+                                  "polarity": polarity,
+                                  "subjectivity": subjectivity,
+                                  "sentiment": sentiment})
 
             logger.info("Will get news headlines again in %s sec..." % self.frequency)
             time.sleep(self.frequency)
@@ -344,18 +346,25 @@ class NewsHeadlineListener:
 
         try:
 
-            req = requests.get(url)
-            html = req.text
-            soup = BeautifulSoup(html, 'html.parser')
-            html = soup.findAll('h3')
-            links = soup.findAll('a')
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
+                'Content-Type': 'text/html',
+                }
 
+            driver = webdriver.Edge(executable_path='C:\EdgeDriver\edgedriver_win6487.0.664.75\msedgedriver.exe')
+            driver.get(url)
+            
+            self.scroll_web_page(driver, 12)
+
+            req = driver.find_element_by_id(id_='mrt-node-quoteNewsStream-0-Stream')
+            html = req.find_elements_by_tag_name('h3')
+            links = req.find_elements_by_tag_name('a')
             logger.debug(html)
             logger.debug(links)
 
             if html:
                 for i in html:
-                    latestheadlines.append((i.next.next.next.next, url))
+                    latestheadlines.append((i.text, url))
             logger.debug(latestheadlines)
 
             if args.followlinks:
@@ -378,8 +387,43 @@ class NewsHeadlineListener:
         except requests.exceptions.RequestException as re:
             logger.warning("Exception: can't crawl web site (%s)" % re)
             pass
+        except Exception as ex:
+            x = 1
+            y = 2
+
 
         return latestheadlines
+
+    
+    def scroll_web_page(self, driver: webdriver, scroll_count):
+    
+        try:
+            # Wait to load page
+            time.sleep(15)
+
+            SCROLL_PAUSE_TIME = 1.5
+
+            # Get scroll height
+            height = driver.execute_script("return document.body.scrollHeight")
+            
+            count = 0 
+            while count <= scroll_count:
+                
+                count = count + 1
+                
+                # Scroll down to bottom
+                script = "window.scrollTo(0, "+ str(height) +");"
+                driver.execute_script(script)
+
+                # Wait to load page
+                time.sleep(SCROLL_PAUSE_TIME)
+
+                # Calculate new scroll height and compare with last scroll height
+                height = height + driver.execute_script("return document.body.scrollHeight")
+
+        except Exception as ex:
+            x = 1
+            y = 2
 
 
 def get_page_text(url):
@@ -518,11 +562,11 @@ def sentiment_analysis(text):
     # output sentiment
     print("Sentiment (url): " + str(sentiment_url))
     print("Sentiment (algorithm): " + str(sentiment))
-    print("Overall sentiment (textblob): ", text_tb.sentiment) 
-    print("Overall sentiment (vader): ", text_vs) 
-    print("sentence was rated as ", round(text_vs['neg']*100, 3), "% Negative") 
-    print("sentence was rated as ", round(text_vs['neu']*100, 3), "% Neutral") 
-    print("sentence was rated as ", round(text_vs['pos']*100, 3), "% Positive") 
+    print("Overall sentiment (textblob): ", text_tb.sentiment)
+    print("Overall sentiment (vader): ", text_vs)
+    print("sentence was rated as ", round(text_vs['neg']*100, 3), "% Negative")
+    print("sentence was rated as ", round(text_vs['neu']*100, 3), "% Neutral")
+    print("sentence was rated as ", round(text_vs['pos']*100, 3), "% Positive")
     print("************")
 
     return polarity, text_tb.sentiment.subjectivity, sentiment
@@ -741,112 +785,70 @@ if __name__ == '__main__':
     # set up elasticsearch mappings and create index
     mappings = {
         "mappings": {
-            "tweet": {
-                "properties": {
-                    "author": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
-                        }
-                    },
-                    "location": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
-                        }
-                    },
-                    "language": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
-                        }
-                    },
-                    "friends": {
-                        "type": "long"
-                    },
-                    "followers": {
-                        "type": "long"
-                    },
-                    "statuses": {
-                        "type": "long"
-                    },
-                    "date": {
-                        "type": "date"
-                    },
-                    "message": {
-                        "type": "string",
-                        "fields": {
-                            "english": {
-                                "type": "string",
-                                "analyzer": "english"
-                            },
-                            "keyword": {
-                                "type": "keyword"
-                            }
-                        }
-                    },
-                    "tweet_id": {
-                        "type": "long"
-                    },
-                    "polarity": {
-                        "type": "float"
-                    },
-                    "subjectivity": {
-                        "type": "float"
-                    },
-                    "sentiment": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
+            "properties": {
+                "type": { "type": "keyword" },
+                "author": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
                         }
                     }
-                }
-            },
-            "newsheadline": {
-                "properties": {
-                    "date": {
-                        "type": "date"
-                    },
-                    "location": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
+                },
+                "location": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
                         }
-                    },
-                    "message": {
-                        "type": "string",
-                        "fields": {
-                            "english": {
-                                "type": "string",
-                                "analyzer": "english"
-                            },
-                            "keyword": {
-                                "type": "keyword"
-                            }
+                    }
+                },
+                "language": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
                         }
-                    },
-                    "polarity": {
-                        "type": "float"
-                    },
-                    "subjectivity": {
-                        "type": "float"
-                    },
-                    "sentiment": {
-                        "type": "string",
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword"
-                            }
+                    }
+                },
+                "friends": {
+                    "type": "long"
+                },
+                "followers": {
+                    "type": "long"
+                },
+                "statuses": {
+                    "type": "long"
+                },
+                "date": {
+                    "type": "date"
+                },
+                "message": {
+                    "type": "text",
+                    "fields": {
+                        "english": {
+                            "type": "text",
+                            "analyzer": "english"
+                        },
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
+                },
+                "tweet_id": {
+                    "type": "long"
+                },
+                "polarity": {
+                    "type": "float"
+                },
+                "subjectivity": {
+                    "type": "float"
+                },
+                "sentiment": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
                         }
                     }
                 }

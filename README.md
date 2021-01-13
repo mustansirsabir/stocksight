@@ -1,4 +1,4 @@
-<img src="/docs/stocksight.png?raw=true" alt="stocksight" />
+<img src="./docs/stocksight.png?raw=true" alt="stocksight" />
 
 [![License](https://img.shields.io/github/license/shirosaidev/stocksight.svg?label=License&maxAge=86400)](./LICENSE)
 [![Release](https://img.shields.io/github/release/shirosaidev/stocksight.svg?label=Release&maxAge=60)](https://github.com/shirosaidev/stocksight/releases/latest)
