@@ -8,6 +8,13 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Sentiment.py",
+            "type": "python",
+            "request": "launch",
             "program": "sentiment.py",
             "console": "integratedTerminal",
             // "args": [
@@ -17,15 +24,25 @@
             //     "'Elon Musk',Musk,Tesla,SpaceX",
             //     "--debug"
             // ]
+            // "args": [
+            //     "-i",
+            //     "stocksight2",
+            //     "-s",
+            //     "TSLA",
+            //     "--newsheadlines",
+            //     "--debug"
+            // ]
             "args": [
                 "-i",
                 "stocksight2",
-                "-s",
-                "TSLA",
-                "--newsheadlines",
+                "-b",
+                "data/all-data.csv",
+                "--frequency",
+                "0.2"
+                // "-s",
+                // "TSLA",
                 "--debug"
             ]
-
         }
     ]
 }

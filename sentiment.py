@@ -36,6 +36,7 @@ from newspaper import Article, ArticleException
 # import elasticsearch host, twitter keys and tokens
 from config import *
 from selenium import webdriver
+import pandas as pd
 
 STOCKSIGHT_VERSION = '0.1-b.12'
 __version__ = STOCKSIGHT_VERSION
@@ -56,7 +57,7 @@ tweet_ids = []
 twitter_users_file = './twitteruserids.txt'
 
 prev_time = time.time()
-sentiment_avg = [0.0,0.0,0.0]
+sentiment_avg = [0.0, 0.0, 0.0]
 
 
 class TweetStreamListener(StreamListener):
@@ -69,18 +70,18 @@ class TweetStreamListener(StreamListener):
     # on success
     def on_data(self, data):
         try:
-            self.count+=1
+            self.count += 1
             # decode json
             dict_data = json.loads(data)
 
-            print("\n------------------------------> (tweets: %s, filtered: %s, filter-ratio: %s)" \
-                % (self.count, self.count_filtered, str(round(self.count_filtered/self.count*100,2))+"%"))
+            print("\n------------------------------> (tweets: %s, filtered: %s, filter-ratio: %s)"
+                  % (self.count, self.count_filtered, str(round(self.count_filtered/self.count*100, 2))+"%"))
             logger.debug('tweet data: ' + str(dict_data))
 
             text = dict_data["text"]
             if text is None:
                 logger.info("Tweet has no relevant text, skipping")
-                self.count_filtered+=1
+                self.count_filtered += 1
                 return True
 
             # grab html links from tweet
@@ -93,8 +94,9 @@ class TweetStreamListener(StreamListener):
 
             # check if tweet has no valid text
             if textclean == "":
-                logger.info("Tweet does not cotain any valid text after cleaning, not adding")
-                self.count_filtered+=1
+                logger.info(
+                    "Tweet does not cotain any valid text after cleaning, not adding")
+                self.count_filtered += 1
                 return True
 
             # get date when tweet was created
@@ -145,25 +147,27 @@ class TweetStreamListener(StreamListener):
 
             # check for min token length
             if len(tokens) < 5:
-                logger.info("Tweet does not contain min. number of tokens, not adding")
-                self.count_filtered+=1
+                logger.info(
+                    "Tweet does not contain min. number of tokens, not adding")
+                self.count_filtered += 1
                 return True
 
             # do some checks before adding to elasticsearch and crawling urls in tweet
             if friends == 0 or \
-                            followers == 0 or \
-                            statuses == 0 or \
-                            text == "" or \
-                            tweetid in tweet_ids:
+                    followers == 0 or \
+                    statuses == 0 or \
+                    text == "" or \
+                    tweetid in tweet_ids:
                 logger.info("Tweet doesn't meet min requirements, not adding")
-                self.count_filtered+=1
+                self.count_filtered += 1
                 return True
 
             # check ignored tokens from config
             for t in nltk_tokens_ignored:
                 if t in tokens:
-                    logger.info("Tweet contains token from ignore list, not adding")
-                    self.count_filtered+=1
+                    logger.info(
+                        "Tweet contains token from ignore list, not adding")
+                    self.count_filtered += 1
                     return True
             # check required tokens from config
             tokenspass = False
@@ -175,8 +179,9 @@ class TweetStreamListener(StreamListener):
                         tokenspass = True
                         break
             if not tokenspass:
-                logger.info("Tweet does not contain token from required list or min required, not adding")
-                self.count_filtered+=1
+                logger.info(
+                    "Tweet does not contain token from required list or min required, not adding")
+                self.count_filtered += 1
                 return True
 
             # clean text for sentiment analysis
@@ -184,8 +189,9 @@ class TweetStreamListener(StreamListener):
 
             # check if tweet has no valid text
             if text_clean == "":
-                logger.info("Tweet does not cotain any valid text after cleaning, not adding")
-                self.count_filtered+=1
+                logger.info(
+                    "Tweet does not cotain any valid text after cleaning, not adding")
+                self.count_filtered += 1
                 return True
 
             print("Tweet Clean Text (sentiment): " + text_clean)
@@ -196,7 +202,7 @@ class TweetStreamListener(StreamListener):
             # add tweet_id to list
             tweet_ids.append(dict_data["id"])
 
-            # get sentiment for tweet 
+            # get sentiment for tweet
             if len(tweet_urls) > 0:
                 tweet_urls_polarity = 0
                 tweet_urls_subjectivity = 0
@@ -206,7 +212,8 @@ class TweetStreamListener(StreamListener):
                         continue
                     pol, sub, sen = res
                     tweet_urls_polarity = (tweet_urls_polarity + pol) / 2
-                    tweet_urls_subjectivity = (tweet_urls_subjectivity + sub) / 2
+                    tweet_urls_subjectivity = (
+                        tweet_urls_subjectivity + sub) / 2
                     if sentiment == "positive" or sen == "positive":
                         sentiment = "positive"
                     elif sentiment == "negative" or sen == "negative":
@@ -219,28 +226,27 @@ class TweetStreamListener(StreamListener):
                     polarity = (polarity + tweet_urls_polarity) / 2
                 if tweet_urls_subjectivity > 0:
                     subjectivity = (subjectivity + tweet_urls_subjectivity) / 2
-            
 
             logger.info("Adding tweet to elasticsearch")
             # add twitter data and sentiment info to elasticsearch
             es.index(index=args.index,
-                    doc_type="_doc",
-                    body={"author": screen_name,
-                        "type": "tweet",
-                        "location": location,
-                        "language": language,
-                        "friends": friends,
-                        "followers": followers,
-                        "statuses": statuses,
-                        "date": created_date,
-                        "message": text_filtered,
-                        "tweet_id": tweetid,
-                        "polarity": polarity,
-                        "subjectivity": subjectivity,
-                        "sentiment": sentiment})
+                     doc_type="_doc",
+                     body={"author": screen_name,
+                           "type": "tweet",
+                           "location": location,
+                           "language": language,
+                           "friends": friends,
+                           "followers": followers,
+                           "statuses": statuses,
+                           "date": created_date,
+                           "message": text_filtered,
+                           "tweet_id": tweetid,
+                           "polarity": polarity,
+                           "subjectivity": subjectivity,
+                           "sentiment": sentiment})
 
             # randomly sleep to stagger request time
-            time.sleep(randrange(2,5))
+            time.sleep(randrange(2, 5))
             return True
 
         except Exception as e:
@@ -249,16 +255,17 @@ class TweetStreamListener(StreamListener):
 
     # on failure
     def on_error(self, status_code):
-        logger.error("Got an error with status code: %s (will try again later)" % status_code)
+        logger.error(
+            "Got an error with status code: %s (will try again later)" % status_code)
         # randomly sleep to stagger request time
-        time.sleep(randrange(2,30))
+        time.sleep(randrange(2, 30))
         return True
 
     # on timeout
     def on_timeout(self):
         logger.warning("Timeout... (will try again later)")
         # randomly sleep to stagger request time
-        time.sleep(randrange(2,30))
+        time.sleep(randrange(2, 30))
         return True
 
 
@@ -275,19 +282,19 @@ class NewsHeadlineListener:
 
         while True:
             new_headlines = self.get_news_headlines(self.url)
-            
+
             # add any new headlines
             for htext, htext_url in new_headlines:
                 if htext not in self.headlines:
                     self.headlines.append(htext)
-                    self.count+=1
+                    self.count += 1
 
                     datenow = datetime.utcnow().isoformat()
                     # output news data
-                    print("\n------------------------------> (news headlines: %s, filtered: %s, filter-ratio: %s)" \
-                        % (self.count, self.count_filtered, str(round(self.count_filtered/self.count*100,2))+"%"))
+                    print("\n------------------------------> (news headlines: %s, filtered: %s, filter-ratio: %s)"
+                          % (self.count, self.count_filtered, str(round(self.count_filtered/self.count*100, 2))+"%"))
                     print("Date: " + datenow)
-                    
+
                     print("News Headline: " + htext)
                     print("Location (url): " + htext_url)
 
@@ -299,43 +306,50 @@ class NewsHeadlineListener:
 
                     # check for min token length
                     if len(tokens) < 5:
-                        logger.info("Text does not contain min. number of tokens, not adding")
-                        self.count_filtered+=1
+                        logger.info(
+                            "Text does not contain min. number of tokens, not adding")
+                        self.count_filtered += 1
                         continue
 
                     # check ignored tokens from config
                     for t in nltk_tokens_ignored:
                         if t in tokens:
-                            logger.info("Text contains token from ignore list, not adding")
-                            self.count_filtered+=1
+                            logger.info(
+                                "Text contains token from ignore list, not adding")
+                            self.count_filtered += 1
                             continue
+
                     # check required tokens from config
                     tokenspass = False
                     for t in nltk_tokens_required:
                         if t in tokens:
                             tokenspass = True
                             break
+
                     if not tokenspass:
-                        logger.info("Text does not contain token from required list, not adding")
-                        self.count_filtered+=1
+                        logger.info(
+                            "Text does not contain token from required list, not adding")
+                        self.count_filtered += 1
                         continue
 
                     # get sentiment values
-                    polarity, subjectivity, sentiment = sentiment_analysis(htext)
+                    polarity, subjectivity, sentiment = sentiment_analysis(
+                        htext)
 
                     logger.info("Adding news headline to elasticsearch")
                     # add news headline data and sentiment info to elasticsearch
                     es.index(index=args.index,
-                            doc_type="_doc",
-                            body={"date": datenow,
-                                  "type": "newsheadline",
-                                  "location": htext_url,
-                                  "message": htext,
-                                  "polarity": polarity,
-                                  "subjectivity": subjectivity,
-                                  "sentiment": sentiment})
+                             doc_type="_doc",
+                             body={"date": datenow,
+                                   "type": "newsheadline",
+                                   "location": htext_url,
+                                   "message": htext,
+                                   "polarity": polarity,
+                                   "subjectivity": subjectivity,
+                                   "sentiment": sentiment})
 
-            logger.info("Will get news headlines again in %s sec..." % self.frequency)
+            logger.info("Will get news headlines again in %s sec..." %
+                        self.frequency)
             time.sleep(self.frequency)
 
     def get_news_headlines(self, url):
@@ -349,14 +363,16 @@ class NewsHeadlineListener:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
                 'Content-Type': 'text/html',
-                }
+            }
 
-            driver = webdriver.Edge(executable_path='C:\EdgeDriver\edgedriver_win6487.0.664.75\msedgedriver.exe')
+            driver = webdriver.Edge(
+                executable_path='C:\EdgeDriver\edgedriver_win6487.0.664.75\msedgedriver.exe')
             driver.get(url)
-            
+
             self.scroll_web_page(driver, 12)
 
-            req = driver.find_element_by_id(id_='mrt-node-quoteNewsStream-0-Stream')
+            req = driver.find_element_by_id(
+                id_='mrt-node-quoteNewsStream-0-Stream')
             html = req.find_elements_by_tag_name('h3')
             links = req.find_elements_by_tag_name('a')
             logger.debug(html)
@@ -377,7 +393,8 @@ class NewsHeadlineListener:
                                 self.followedlinks.append(l)
                 logger.debug(latestheadlines_links)
 
-                logger.info("Following any new links and grabbing text from page...")
+                logger.info(
+                    "Following any new links and grabbing text from page...")
 
                 for linkurl in latestheadlines_links:
                     for p in get_page_text(linkurl):
@@ -389,14 +406,11 @@ class NewsHeadlineListener:
             pass
         except Exception as ex:
             x = 1
-            y = 2
-
 
         return latestheadlines
 
-    
     def scroll_web_page(self, driver: webdriver, scroll_count):
-    
+
         try:
             # Wait to load page
             time.sleep(15)
@@ -405,25 +419,117 @@ class NewsHeadlineListener:
 
             # Get scroll height
             height = driver.execute_script("return document.body.scrollHeight")
-            
-            count = 0 
+
+            count = 0
             while count <= scroll_count:
-                
+
                 count = count + 1
-                
+
                 # Scroll down to bottom
-                script = "window.scrollTo(0, "+ str(height) +");"
+                script = "window.scrollTo(0, " + str(height) + ");"
                 driver.execute_script(script)
 
                 # Wait to load page
                 time.sleep(SCROLL_PAUSE_TIME)
 
                 # Calculate new scroll height and compare with last scroll height
-                height = height + driver.execute_script("return document.body.scrollHeight")
+                height = height + \
+                    driver.execute_script("return document.body.scrollHeight")
 
         except Exception as ex:
             x = 1
             y = 2
+
+
+class BatchDataProcessor:
+
+    def process_csv(self, path, data_column, sentiment_column, encoding=None, columns=None, frequency=120):
+
+        if path == None:
+            raise Exception("keyword 'path' cannot be none")
+
+        if data_column == None:
+            raise Exception("keyword 'data_column' cannot be none")
+
+        if sentiment_column == None:
+            raise Exception("keyword 'sentiment_column' cannot be none")
+
+        # TODO: Add validation for columns=None
+
+        self.encoding = encoding
+        self.file_path = path
+        self.col_data = data_column
+        self.col_sentiment = sentiment_column
+        self.frequency = frequency
+
+        self.count = 0
+        self.count_filtered = 0
+        self.filter_ratio = 0
+
+        try:
+
+            df = pd.read_csv(self.file_path, encoding=encoding, names=columns)
+            print(df.head())
+
+            for i in range(len(df)):
+
+                self.count += 1
+
+                datenow = datetime.utcnow().isoformat()
+
+                sentiment_raw = None
+                headline_raw = None
+                for col in df.columns:
+                    if col == self.col_data:
+                        headline_raw = df.loc[i, col]
+                    elif col == self.col_sentiment:
+                        sentiment_raw = df.loc[i, col]
+
+                print("Date: " + datenow)
+                print("News Headline: " + headline_raw)
+
+                text_for_tokens = re.sub(
+                    r"[\%|\$|\.|\,|\!|\:|\@]|\(|\)|\#|\+|(``)|('')|\?|\-", "", headline_raw)
+                tokens = nltk.word_tokenize(text_for_tokens)
+                print("NLTK Tokens: " + str(tokens))
+
+                # check for min token length
+                if len(tokens) < 5:
+                    logger.info(
+                        "Text does not contain min. number of tokens, not adding")
+                    self.count_filtered += 1
+                    continue
+
+                # Skipping check for ignored tokens from config
+                # Skipping check required tokens from config
+
+                # get sentiment values as per existing code
+                polarity, subjectivity, sentiment = sentiment_analysis(
+                    headline_raw)
+
+                logger.info("\n\r Sentiment (file): %s \n\r Sentiment (algorithm): %s" % (
+                    sentiment_raw, sentiment))
+                logger.info("Adding news headline to elasticsearch")
+                # add news headline data and sentiment info to elasticsearch
+                es.index(index=args.index,
+                         doc_type="_doc",
+                         body={"date": datenow,
+                                  "type": "batchheadline",
+                                  "message": headline_raw,
+                                  "polarity": polarity,
+                                  "subjectivity": subjectivity,
+                                  "sentiment": sentiment,
+                                  "sentiment_from_file": sentiment_raw})
+
+                logger.info(
+                    "Processing next batch record in %s sec..." % self.frequency)
+                time.sleep(self.frequency)
+
+            print("\n------------------------------> (tweets: %s, filtered: %s, filter-ratio: %s)"
+                  % (self.count, self.count_filtered, str(round(self.count_filtered/self.count*100, 2))+"%"))
+            logger.info("Batch File processing complete, exiting...")
+        except Exception as ex:
+            logger.warning("Exception: can't load batch file (%s)" % ex)
 
 
 def get_page_text(url):
@@ -477,17 +583,19 @@ def get_sentiment_from_url(text, sentimentURL):
     payload = {'text': text}
 
     try:
-        #logger.debug(text)
+        # logger.debug(text)
         post = requests.post(sentimentURL, data=payload)
-        #logger.debug(post.status_code)
-        #logger.debug(post.text)
+        # logger.debug(post.status_code)
+        # logger.debug(post.text)
     except requests.exceptions.RequestException as re:
-        logger.error("Exception: requests exception getting sentiment from url caused by %s" % re)
+        logger.error(
+            "Exception: requests exception getting sentiment from url caused by %s" % re)
         raise
 
     # return None if we are getting throttled or other connection problem
     if post.status_code != 200:
-        logger.warning("Can't get sentiment from url caused by %s %s" % (post.status_code, post.text))
+        logger.warning("Can't get sentiment from url caused by %s %s" %
+                       (post.status_code, post.text))
         return None
 
     response = post.json()
@@ -557,7 +665,8 @@ def sentiment_analysis(text):
     print("Sentiment Polarity: " + str(round(polarity, 3)))
 
     # output sentiment subjectivity (TextBlob)
-    print("Sentiment Subjectivity: " + str(round(text_tb.sentiment.subjectivity, 3)))
+    print("Sentiment Subjectivity: " +
+          str(round(text_tb.sentiment.subjectivity, 3)))
 
     # output sentiment
     print("Sentiment (url): " + str(sentiment_url))
@@ -589,12 +698,14 @@ def tweeklink_sentiment_analysis(url):
 
         # check for min token length
         if len(tokens) < 5:
-            logger.info("Tweet link does not contain min. number of tokens, not adding")
+            logger.info(
+                "Tweet link does not contain min. number of tokens, not adding")
             return None
         # check ignored tokens from config
         for t in nltk_tokens_ignored:
             if t in tokens:
-                logger.info("Tweet link contains token from ignore list, not adding")
+                logger.info(
+                    "Tweet link contains token from ignore list, not adding")
                 return None
         # check required tokens from config
         tokenspass = False
@@ -606,7 +717,8 @@ def tweeklink_sentiment_analysis(url):
                     tokenspass = True
                     break
         if not tokenspass:
-            logger.info("Tweet link does not contain token from required list or min required, not adding")
+            logger.info(
+                "Tweet link does not contain token from required list or min required, not adding")
             return None
 
         summary = article.summary
@@ -617,11 +729,12 @@ def tweeklink_sentiment_analysis(url):
         summary_clean = clean_text_sentiment(summary_clean)
         print("Tweet link Clean Summary (sentiment): " + summary_clean)
         polarity, subjectivity, sentiment = sentiment_analysis(summary_clean)
-        
+
         return polarity, subjectivity, sentiment
 
     except ArticleException as e:
-        logger.warning('Exception: error getting text on Twitter link caused by: %s' % e)
+        logger.warning(
+            'Exception: error getting text on Twitter link caused by: %s' % e)
         return None
 
 
@@ -648,7 +761,8 @@ def get_twitter_users_from_url(url):
                     twitter_users.append(u'@' + user)
             logger.debug(twitter_users)
     except requests.exceptions.RequestException as re:
-        logger.warning("Requests exception: can't crawl web site caused by: %s" % re)
+        logger.warning(
+            "Requests exception: can't crawl web site caused by: %s" % re)
         pass
     return twitter_users
 
@@ -671,13 +785,16 @@ def get_twitter_users_from_file(file):
 
 
 if __name__ == '__main__':
+
     # parse cli args
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--index", metavar="INDEX", default="stocksight",
                         help="Index name for Elasticsearch (default: stocksight)")
     parser.add_argument("-d", "--delindex", action="store_true",
                         help="Delete existing Elasticsearch index first")
-    parser.add_argument("-s", "--symbol", metavar="SYMBOL", required=True,
+    # parser.add_argument("-s", "--symbol", metavar="SYMBOL", required=True,
+    #                     help="Stock symbol you are interesed in searching for, example: TSLA")
+    parser.add_argument("-s", "--symbol", metavar="SYMBOL",
                         help="Stock symbol you are interesed in searching for, example: TSLA")
     parser.add_argument("-k", "--keywords", metavar="KEYWORDS",
                         help="Use keywords to search for in Tweets instead of feeds. "
@@ -693,18 +810,18 @@ if __name__ == '__main__':
                         help="Follow any link url in tweets and analyze sentiment on web page")
     parser.add_argument("-n", "--newsheadlines", action="store_true",
                         help="Get news headlines instead of Twitter using stock symbol from -s")
-    parser.add_argument("--frequency", metavar="FREQUENCY", default=120, type=int,
+    parser.add_argument("--frequency", metavar="FREQUENCY", default=120, type=float,
                         help="How often in seconds to retrieve news headlines (default: 120 sec)")
     parser.add_argument("--followlinks", action="store_true",
-                        help="Follow links on news headlines and scrape relevant text from landing page") 
+                        help="Follow links on news headlines and scrape relevant text from landing page")
     parser.add_argument("-w", "--websentiment", action="store_true",
-                        help="Get sentiment results from text processing website")                  
+                        help="Get sentiment results from text processing website")
     parser.add_argument("--overridetokensreq", metavar="TOKEN", nargs="+",
                         help="Override nltk required tokens from config, separate with space")
     parser.add_argument("--overridetokensignore", metavar="TOKEN", nargs="+",
                         help="Override nltk ignore tokens from config, separate with space")
     parser.add_argument("-v", "--verbose", action="store_true",
-                       help="Increase output verbosity")
+                        help="Increase output verbosity")
     parser.add_argument("--debug", action="store_true",
                         help="Debug message output")
     parser.add_argument("-q", "--quiet", action="store_true",
@@ -712,7 +829,12 @@ if __name__ == '__main__':
     parser.add_argument("-V", "--version", action="version",
                         version="stocksight v%s" % STOCKSIGHT_VERSION,
                         help="Prints version and exits")
+    parser.add_argument("-b", "--batchfile", metavar="BATCHFILE",
+                        help="Path for batchfile")
     args = parser.parse_args()
+
+    if args.symbol is None and args.batchfile is None:
+        parser.error('without -s(--symbol), -b(--batchfile) is required')
 
     # set up logging
     logger = logging.getLogger('stocksight')
@@ -780,13 +902,13 @@ if __name__ == '__main__':
 
     # create instance of elasticsearch
     es = Elasticsearch(hosts=[{'host': elasticsearch_host, 'port': elasticsearch_port}],
-                http_auth=(elasticsearch_user, elasticsearch_password))
+                       http_auth=(elasticsearch_user, elasticsearch_password))
 
     # set up elasticsearch mappings and create index
     mappings = {
         "mappings": {
             "properties": {
-                "type": { "type": "keyword" },
+                "type": {"type": "keyword"},
                 "author": {
                     "type": "text",
                     "fields": {
@@ -851,6 +973,14 @@ if __name__ == '__main__':
                             "type": "keyword"
                         }
                     }
+                },
+                "sentiment_from_file": {
+                    "type": "text",
+                    "fields": {
+                        "keyword": {
+                            "type": "keyword"
+                        }
+                    }
                 }
             }
         }
@@ -860,7 +990,8 @@ if __name__ == '__main__':
         logger.info('Deleting existing Elasticsearch index ' + args.index)
         es.indices.delete(index=args.index, ignore=[400, 404])
 
-    logger.info('Creating new Elasticsearch index or using existing ' + args.index)
+    logger.info(
+        'Creating new Elasticsearch index or using existing ' + args.index)
     es.indices.create(index=args.index, body=mappings, ignore=[400, 404])
 
     # check if we need to override any tokens
@@ -872,18 +1003,27 @@ if __name__ == '__main__':
     # are we grabbing news headlines from yahoo finance or twitter
     if args.newsheadlines:
         try:
-            url = "https://finance.yahoo.com/quote/%s/?p=%s" % (args.symbol, args.symbol)
+            url = "https://finance.yahoo.com/quote/%s/?p=%s" % (
+                args.symbol, args.symbol)
 
             logger.info('NLTK tokens required: ' + str(nltk_tokens_required))
             logger.info('NLTK tokens ignored: ' + str(nltk_tokens_ignored))
-            logger.info("Scraping news for %s from %s ..." % (args.symbol, url))
+            logger.info("Scraping news for %s from %s ..." %
+                        (args.symbol, url))
 
             # create instance of NewsHeadlineListener
             newslistener = NewsHeadlineListener(url, args.frequency)
         except KeyboardInterrupt:
             print("Ctrl-c keyboard interrupt, exiting...")
             sys.exit(0)
-
+    elif args.batchfile:
+        processor = BatchDataProcessor()
+        processor.process_csv(args.batchfile,
+                              columns=["Sentiment", "News Headline"],
+                              sentiment_column="Sentiment",
+                              data_column="News Headline",
+                              encoding="ISO-8859-1",
+                              frequency=args.frequency)
     else:
         # create instance of the tweepy tweet stream listener
         tweetlistener = TweetStreamListener()
@@ -902,7 +1042,8 @@ if __name__ == '__main__':
             if len(twitter_users) > 0:
                 twitter_feeds = twitter_users
             else:
-                logger.info("No twitter users found in links on web page, exiting")
+                logger.info(
+                    "No twitter users found in links on web page, exiting")
                 sys.exit(1)
 
         # grab twitter users from file
@@ -915,7 +1056,8 @@ if __name__ == '__main__':
                 sys.exit(1)
         elif args.keywords is None:
             # build user id list from user names
-            logger.info("Looking up Twitter user ids from usernames... (use -f twitteruserids.txt for cached user ids)")
+            logger.info(
+                "Looking up Twitter user ids from usernames... (use -f twitteruserids.txt for cached user ids)")
             useridlist = []
             while True:
                 for u in twitter_feeds:
@@ -928,9 +1070,11 @@ if __name__ == '__main__':
                         time.sleep(randrange(2, 5))
                     except TweepError as te:
                         # sleep a bit in case twitter suspends us
-                        logger.warning("Tweepy exception: twitter api error caused by: %s" % te)
-                        logger.info("Sleeping for a random amount of time and retrying...")
-                        time.sleep(randrange(2,30))
+                        logger.warning(
+                            "Tweepy exception: twitter api error caused by: %s" % te)
+                        logger.info(
+                            "Sleeping for a random amount of time and retrying...")
+                        time.sleep(randrange(2, 30))
                         continue
                     except KeyboardInterrupt:
                         logger.info("Ctrl-c keyboard interrupt, exiting...")
@@ -939,7 +1083,8 @@ if __name__ == '__main__':
                 break
 
             if len(useridlist) > 0:
-                logger.info('Writing twitter user ids to text file %s' % twitter_users_file)
+                logger.info('Writing twitter user ids to text file %s' %
+                            twitter_users_file)
                 try:
                     f = open(twitter_users_file, "wt", encoding='utf-8')
                     for i in useridlist:
@@ -949,7 +1094,8 @@ if __name__ == '__main__':
                         f.write(line)
                     f.close()
                 except (IOError, OSError) as e:
-                    logger.warning("Exception: error writing to file caused by: %s" % e)
+                    logger.warning(
+                        "Exception: error writing to file caused by: %s" % e)
                     pass
                 except Exception as e:
                     raise
@@ -977,7 +1123,8 @@ if __name__ == '__main__':
                 logger.info('Twitter keywords: ' + str(keywords))
                 stream.filter(track=keywords, languages=['en'])
         except TweepError as te:
-            logger.debug("Tweepy Exception: Failed to get tweets caused by: %s" % te)
+            logger.debug(
+                "Tweepy Exception: Failed to get tweets caused by: %s" % te)
         except KeyboardInterrupt:
             print("Ctrl-c keyboard interrupt, exiting...")
             stream.disconnect()
