@@ -309,12 +309,14 @@ class NewsHeadlineListener:
                             logger.info("Text contains token from ignore list, not adding")
                             self.count_filtered+=1
                             continue
+                    
                     # check required tokens from config
                     tokenspass = False
                     for t in nltk_tokens_required:
                         if t in tokens:
                             tokenspass = True
                             break
+                    
                     if not tokenspass:
                         logger.info("Text does not contain token from required list, not adding")
                         self.count_filtered+=1
@@ -322,18 +324,25 @@ class NewsHeadlineListener:
 
                     # get sentiment values
                     polarity, subjectivity, sentiment = sentiment_analysis(htext)
+                    
+                    # check if the document already exists
+                    res = es.search(index = args.index, body = {'query':{'match':{'message.keyword':htext}}})
+                    
+                    if res['hits']['total']['value'] != 0:
+                        logger.info("News headline: '%s' already exists in the index, skipping...", htext)
+                    else:
+                        logger.info("Adding news headline to elasticsearch")
 
-                    logger.info("Adding news headline to elasticsearch")
-                    # add news headline data and sentiment info to elasticsearch
-                    es.index(index=args.index,
-                            doc_type="_doc",
-                            body={"date": datenow,
-                                  "type": "newsheadline",
-                                  "location": htext_url,
-                                  "message": htext,
-                                  "polarity": polarity,
-                                  "subjectivity": subjectivity,
-                                  "sentiment": sentiment})
+                        # add news headline data and sentiment info to elasticsearch
+                        es.index(index = args.index,
+                                doc_type = "_doc",
+                                body = {"date": datenow,
+                                    "type": "newsheadline",
+                                    "location": htext_url,
+                                    "message": htext,
+                                    "polarity": polarity,
+                                    "subjectivity": subjectivity,
+                                    "sentiment": sentiment})
 
             logger.info("Will get news headlines again in %s sec..." % self.frequency)
             time.sleep(self.frequency)
