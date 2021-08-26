@@ -454,6 +454,9 @@ class BatchDataProcessor:
         if sentiment_column == None:
             raise Exception("keyword 'sentiment_column' cannot be none")
 
+        logger.info("Processing batch file found at %s with encoding %s"
+                  % (path, encoding))
+
         # TODO: Add validation for columns=None
 
         self.encoding = encoding
@@ -488,6 +491,7 @@ class BatchDataProcessor:
                 print("Date: " + datenow)
                 print("News Headline: " + headline_raw)
 
+                # TODO: Refactor the below statement to be generic call
                 text_for_tokens = re.sub(
                     r"[\%|\$|\.|\,|\!|\:|\@]|\(|\)|\#|\+|(``)|('')|\?|\-", "", headline_raw)
                 tokens = nltk.word_tokenize(text_for_tokens)
@@ -499,6 +503,16 @@ class BatchDataProcessor:
                         "Text does not contain min. number of tokens, not adding")
                     self.count_filtered += 1
                     continue
+
+                # clean up headline text
+                headline_clean = clean_text(headline_raw)
+
+                # check if headline has no valid text
+                if headline_clean == "":
+                    logger.info(
+                        "Headline does not cotain any valid text after cleaning, not adding")
+                    self.count_filtered += 1
+                    return True
 
                 # Skipping check for ignored tokens from config
                 # Skipping check required tokens from config
@@ -515,7 +529,7 @@ class BatchDataProcessor:
                          doc_type="_doc",
                          body={"date": datenow,
                                   "type": "batchheadline",
-                                  "message": headline_raw,
+                                  "message": headline_clean,
                                   "polarity": polarity,
                                   "subjectivity": subjectivity,
                                   "sentiment": sentiment,
@@ -829,8 +843,10 @@ if __name__ == '__main__':
     parser.add_argument("-V", "--version", action="version",
                         version="stocksight v%s" % STOCKSIGHT_VERSION,
                         help="Prints version and exits")
-    parser.add_argument("-b", "--batchfile", metavar="BATCHFILE",
-                        help="Path for batchfile")
+    # parser.add_argument("-b", "--batchfile", metavar="BATCHFILE",
+    #                     help="Path for batchfile")
+    parser.add_argument("-b", "--batchfile", action="store_true",
+                        help="Process the batch file using BatchFileProcessor(setup required at config.py) ")
     args = parser.parse_args()
 
     if args.symbol is None and args.batchfile is None:
@@ -1017,13 +1033,24 @@ if __name__ == '__main__':
             print("Ctrl-c keyboard interrupt, exiting...")
             sys.exit(0)
     elif args.batchfile:
-        processor = BatchDataProcessor()
-        processor.process_csv(args.batchfile,
-                              columns=["Sentiment", "News Headline"],
-                              sentiment_column="Sentiment",
-                              data_column="News Headline",
-                              encoding="ISO-8859-1",
-                              frequency=args.frequency)
+        try:
+            processor = BatchDataProcessor()
+            # processor.process_csv(args.batchfile,
+            #                     columns=[batch_file_sentiment_column, batch_file_data_column],
+            #                     sentiment_column=batch_file_sentiment_column,
+            #                     data_column=batch_file_sentiment_column,
+            #                     encoding="ISO-8859-1",
+            #                     frequency=args.frequency)
+            processor.process_csv(batch_file_location,
+                                  columns=batch_file_columns,
+                                  sentiment_column=batch_file_sentiment_column,
+                                  data_column=batch_file_data_column,
+                                  encoding=batch_file_encoding,
+                                  frequency=args.frequency)
+        except KeyboardInterrupt:
+            print("Ctrl-c keyboard interrupt, exiting...")
+            stream.disconnect()
+            sys.exit(0)
     else:
         # create instance of the tweepy tweet stream listener
         tweetlistener = TweetStreamListener()

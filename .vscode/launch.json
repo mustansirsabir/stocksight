@@ -12,37 +12,51 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Sentiment.py",
+            "name": "Sentiment: Batchfile",
             "type": "python",
             "request": "launch",
             "program": "sentiment.py",
             "console": "integratedTerminal",
-            // "args": [
-            //     "-s",
-            //     "TSLA",
-            //     "-k",
-            //     "'Elon Musk',Musk,Tesla,SpaceX",
-            //     "--debug"
-            // ]
-            // "args": [
-            //     "-i",
-            //     "stocksight2",
-            //     "-s",
-            //     "TSLA",
-            //     "--newsheadlines",
-            //     "--debug"
-            // ]
+            "args": [
+                "-i",
+                "stocksight_test",
+                "-b",
+                // "data/all-data.csv",
+                "--frequency",
+                "0.2",
+                "--debug"
+            ]
+        },
+        {
+            "name": "Sentiment: Newsheadlines",
+            "type": "python",
+            "request": "launch",
+            "program": "sentiment.py",
+            "console": "integratedTerminal",
             "args": [
                 "-i",
                 "stocksight2",
-                "-b",
-                "data/all-data.csv",
-                "--frequency",
-                "0.2"
-                // "-s",
-                // "TSLA",
+                "-s",
+                "TSLA",
+                "--newsheadlines",
                 "--debug"
             ]
-        }
+        },
+        {
+            "name": "Sentiment: Tweets",
+            "type": "python",
+            "request": "launch",
+            "program": "sentiment.py",
+            "console": "integratedTerminal",
+            "args": [
+                "-i",
+                "stocksight2",
+                "-s",
+                "TSLA",
+                "-k",
+                "'Elon Musk',Musk,Tesla,SpaceX",
+                "--debug"
+            ]
+        },
     ]
 }
